@@ -19,6 +19,11 @@
 
 using namespace Kore;
 
+namespace {
+	
+	ConstantLocation tintLocation;
+
+
 // A simple particle implementation
 class Particle {
 public:
@@ -41,6 +46,15 @@ public:
 
 	// Is the particle dead (= ready to be re-spawned?)
 	bool dead;
+
+	/************************************************************************/
+	/* Solution - Simulate fire by interpolating colors over lifetime       */
+	/************************************************************************/
+	// The beginning color
+	vec4 colorStart;
+
+	// The end color
+	vec4 colorEnd;
 
 
 	void init(const VertexStructure& structure) {
@@ -67,12 +81,14 @@ public:
 	}
 
 
-	void Emit(vec3 pos, vec3 velocity, float timeToLive) {
+	void Emit(vec3 pos, vec3 velocity, float timeToLive, vec4 colorStart, vec4 colorEnd) {
 		position = pos;
 		this->velocity = velocity;
 		dead = false;
 		this->timeToLive = timeToLive;
 		totalTimeToLive = timeToLive;
+		this->colorStart = colorStart;
+		this->colorEnd = colorEnd;
 	}
 
 	Particle() {
@@ -140,6 +156,9 @@ public:
 	// When should the next particle be spawned?
 	float nextSpawn;
 
+	
+	
+
 	ParticleSystem(int maxParticles, const VertexStructure& structure ) {
 		particles = new Particle[maxParticles];
 		numParticles = maxParticles;
@@ -188,6 +207,10 @@ public:
 		/************************************************************************/
 		/* Change the matrix V in such a way that the billboards are oriented towards the camera */
 
+		V.Invert();
+		V.Set(0, 3, 0.0f);
+		V.Set(1, 3, 0.0f);
+		V.Set(2, 3, 0.0f);
 
 		/************************************************************************/
 		/* Exercise 7 1.2                                                       */
@@ -197,6 +220,10 @@ public:
 		for (int i = 0; i < numParticles; i++) {
 			// Skip dead particles
 			if (particles[i].dead) continue;
+
+			// Interpolate linearly between the two colors
+			float interpolation = particles[i].timeToLive / particles[i].totalTimeToLive;
+			Graphics::setFloat4(tintLocation, particles[i].colorStart * interpolation + particles[i].colorEnd * (1.0f - interpolation));
 
 			Graphics::setMatrix(mLocation, particles[i].M * V);
 			particles[i].render(tex, image);
@@ -222,7 +249,7 @@ public:
 
 		vec3 velocity(0, 0.3f, 0);
 
-		particles[index].Emit(pos, velocity, 3.0f);
+		particles[index].Emit(pos, velocity, 3.0f, vec4(2.5f, 0, 0, 1), vec4(0, 0, 0, 0));
 	}
 
 
@@ -232,12 +259,6 @@ public:
 
 
 
-
-
-
-
-
-namespace {
 	const int width = 1024;
 	const int height = 768;
 	double startTime;
@@ -271,7 +292,7 @@ namespace {
 	TextureUnit tex;
 	ConstantLocation pvLocation;
 	ConstantLocation mLocation;
-	ConstantLocation tintLocation;
+
 
 	Texture* particleImage;
 	ParticleSystem* particleSystem;
@@ -308,7 +329,8 @@ namespace {
 
 		Graphics::setMatrix(pvLocation, PV);
 
-
+		// Reset tint for objects that should not be tinted
+		Graphics::setFloat4(tintLocation, vec4(1, 1, 1, 1));
 
 
 

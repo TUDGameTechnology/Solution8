@@ -109,16 +109,17 @@ void PhysicsObject::Integrate(float deltaT) {
 	
 	
 	// Derive a new position based on the velocity (Note: Use SetPosition to also set the collider's values)
-	
-	
+	SetPosition(Position + Velocity * deltaT);
+
 	// Derive a new Velocity based on the accumulated forces
-	
+	Velocity += (Accumulator / Mass) * deltaT;
 
 	// Multiply by a damping coefficient (e.g. 0.98)
-	
-	
+	float damping = 0.98f;
+	Velocity *= damping;
+
 	// Clear the accumulator
-	
+	Accumulator = vec3(0, 0, 0);
 }
 
 void PhysicsObject::UpdateMatrix() {

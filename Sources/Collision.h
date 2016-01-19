@@ -27,19 +27,20 @@ public:
 
 	// Return true iff there is an intersection with the other sphere
 	bool IntersectsWith(const SphereCollider& other) {
-		return false;
+		return PenetrationDepth(other) > 0.0f;
 	}
 
 	// Collision normal is the normal vector pointing towards the other sphere
 	vec3 GetCollisionNormal(const SphereCollider& other) {
-		return vec3();
+		vec3 n = other.center - center;
+		n = n.normalize();
+		return n;
 	}
 
 	// The penetration depth
 	float PenetrationDepth(const SphereCollider& other) {
-		return 0.0f;
+		return other.radius + radius - (other.center - center).getLength();
 	}
-
 
 
 	bool IntersectsWith(const PlaneCollider& other) {
