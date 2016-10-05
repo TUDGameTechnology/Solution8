@@ -2,27 +2,7 @@
 
 #include <Kore/Graphics/Graphics.h>
 
-// A simple particle implementation
-class Particle {
-public:
-	// The current position
-	Kore::vec3 position;
-	
-	// The current velocity
-	Kore::vec3 velocity;
-
-	// The remaining time to live
-	float timeToLive;
-
-	// The total time time to live
-	float totalTimeToLive;
-	
-	Particle();
-	
-	void emit(Kore::vec3 pos, Kore::vec3 velocity, float timeToLive);
-	void integrate(float deltaTime);
-};
-
+// A simple, data oriented particle system implementation
 class ParticleSystem {
 public:
 	Kore::VertexBuffer* vb;
@@ -46,9 +26,6 @@ public:
 	// The end color
 	Kore::vec4 colorEnd;
 	
-	// The list of particles
-	Particle* particles;
-
 	// The number of particles
 	int numParticles;
 
@@ -57,6 +34,14 @@ public:
 	
 	// When should the next particle be spawned?
 	float nextSpawn;
+
+	// The total time time to live
+	float totalTimeToLive;
+
+	// The lists of particle data
+	Kore::vec3* particlePositions; // The current position
+	Kore::vec3* particleVelocities; // The current velocity
+	float* particleTimesToLive; // The remaining time to live
 
 	ParticleSystem(int maxParticles, const Kore::VertexStructure& structure );
 

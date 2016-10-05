@@ -6,26 +6,11 @@
 
 using namespace Kore;
 
-Particle::Particle() { }
-
-void Particle::emit(vec3 pos, vec3 velocity, float timeToLive) {
-	position = pos;
-	this->velocity = velocity;
-	this->timeToLive = timeToLive;
-	totalTimeToLive = timeToLive;
-}
-
-void Particle::integrate(float deltaTime) {
-	timeToLive -= deltaTime;
-		
-	// Note: We are using no forces or gravity at the moment.
-	position += velocity * deltaTime;
-}
-
-
-
-ParticleSystem::ParticleSystem(int maxParticles, const VertexStructure& structure ) {
-	particles = new Particle[maxParticles];
+ParticleSystem::ParticleSystem(int maxParticles, const VertexStructure& structure) {
+	particlePositions = new vec3[maxParticles];
+	particleVelocities = new vec3[maxParticles];
+	particleTimesToLive = new float[maxParticles];
+	
 	numParticles = maxParticles;
 	spawnRate = 0.05f;
 	nextSpawn = spawnRate;
@@ -36,6 +21,7 @@ ParticleSystem::ParticleSystem(int maxParticles, const VertexStructure& structur
 	emitMax = position + vec3(b, b, b);
 	colorStart = vec4(2.5f, 0, 0, 1);
 	colorEnd = vec4(0, 0, 0, 0);
+	totalTimeToLive = 3.0f;
 
 	init(structure);
 }
@@ -82,14 +68,17 @@ void ParticleSystem::update(float deltaTime) {
 	}
 		
 	for (int i = 0; i < numParticles; i++) {
-		if (particles[i].timeToLive < 0.0f) {
+		if (particleTimesToLive[i] < 0.0f) {
 			if (spawnParticle) {
 				emitParticle(i);
 				spawnParticle = false;
 			}
 		}
 
-		particles[i].integrate(deltaTime);
+		particleTimesToLive[i] -= deltaTime;
+
+		// Note: We are using no forces or gravity at the moment.
+		particlePositions[i] += particleVelocities[i] * deltaTime;
 	}
 }
 
@@ -114,13 +103,13 @@ void ParticleSystem::render(TextureUnit tex, Texture* image, ConstantLocation mL
 
 	for (int i = 0; i < numParticles; i++) {
 		// Skip dead particles
-		if (particles[i].timeToLive < 0.0f) continue;
+		if (particleTimesToLive[i] < 0.0f) continue;
 
 		// Interpolate linearly between the two colors
-		float interpolation = particles[i].timeToLive / particles[i].totalTimeToLive;
+		float interpolation = particleTimesToLive[i] / totalTimeToLive;
 		Graphics::setFloat4(tintLocation, colorStart * interpolation + colorEnd * (1.0f - interpolation));
 
-		mat4 M = mat4::Translation(particles[i].position.x(), particles[i].position.y(), particles[i].position.z()) * mat4::Scale(0.2f, 0.2f, 0.2f);
+		mat4 M = mat4::Translation(particlePositions[i].x(), particlePositions[i].y(), particlePositions[i].z()) * mat4::Scale(0.2f, 0.2f, 0.2f);
 		Graphics::setMatrix(mLocation, M * V);
 		Graphics::setTexture(tex, image);
 		Graphics::setVertexBuffer(*vb);
@@ -143,10 +132,7 @@ void ParticleSystem::emitParticle(int index) {
 	float y = getRandom(emitMin.y(), emitMax.y());
 	float z = getRandom(emitMin.z(), emitMax.z());
 
-	vec3 pos;
-	pos.set(x, y, z);
-
-	vec3 velocity(0, 0.3f, 0);
-
-	particles[index].emit(pos, velocity, 3.0f);
+	particlePositions[index] = vec3(x, y, z);
+	particleVelocities[index] = vec3(0, 0.3f, 0);
+	particleTimesToLive[index] = totalTimeToLive;
 }
