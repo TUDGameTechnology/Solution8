@@ -6,32 +6,20 @@
 
 using namespace Kore;
 
-Particle::Particle() {
-	dead = true;
-}
+Particle::Particle() { }
 
-void Particle::emit(vec3 pos, vec3 velocity, float timeToLive, vec4 colorStart, vec4 colorEnd) {
+void Particle::emit(vec3 pos, vec3 velocity, float timeToLive) {
 	position = pos;
 	this->velocity = velocity;
-	dead = false;
 	this->timeToLive = timeToLive;
 	totalTimeToLive = timeToLive;
-	this->colorStart = colorStart;
-	this->colorEnd = colorEnd;
 }
 
 void Particle::integrate(float deltaTime) {
 	timeToLive -= deltaTime;
-
-	if (timeToLive < 0.0f) {
-		dead = true;
-	}
 		
 	// Note: We are using no forces or gravity at the moment.
 	position += velocity * deltaTime;
-
-	// Build the matrix
-	M = mat4::Translation(position.x(), position.y(), position.z()) * mat4::Scale(0.2f, 0.2f, 0.2f);
 }
 
 
@@ -46,6 +34,8 @@ ParticleSystem::ParticleSystem(int maxParticles, const VertexStructure& structur
 	float b = 0.1f;
 	emitMin = position + vec3(-b, -b, -b);
 	emitMax = position + vec3(b, b, b);
+	colorStart = vec4(2.5f, 0, 0, 1);
+	colorEnd = vec4(0, 0, 0, 0);
 
 	init(structure);
 }
@@ -92,7 +82,7 @@ void ParticleSystem::update(float deltaTime) {
 	}
 		
 	for (int i = 0; i < numParticles; i++) {
-		if (particles[i].dead) {
+		if (particles[i].timeToLive < 0.0f) {
 			if (spawnParticle) {
 				emitParticle(i);
 				spawnParticle = false;
@@ -124,13 +114,14 @@ void ParticleSystem::render(TextureUnit tex, Texture* image, ConstantLocation mL
 
 	for (int i = 0; i < numParticles; i++) {
 		// Skip dead particles
-		if (particles[i].dead) continue;
+		if (particles[i].timeToLive < 0.0f) continue;
 
 		// Interpolate linearly between the two colors
 		float interpolation = particles[i].timeToLive / particles[i].totalTimeToLive;
-		Graphics::setFloat4(tintLocation, particles[i].colorStart * interpolation + particles[i].colorEnd * (1.0f - interpolation));
+		Graphics::setFloat4(tintLocation, colorStart * interpolation + colorEnd * (1.0f - interpolation));
 
-		Graphics::setMatrix(mLocation, particles[i].M * V);
+		mat4 M = mat4::Translation(particles[i].position.x(), particles[i].position.y(), particles[i].position.z()) * mat4::Scale(0.2f, 0.2f, 0.2f);
+		Graphics::setMatrix(mLocation, M * V);
 		Graphics::setTexture(tex, image);
 		Graphics::setVertexBuffer(*vb);
 		Graphics::setIndexBuffer(*ib);
@@ -157,5 +148,5 @@ void ParticleSystem::emitParticle(int index) {
 
 	vec3 velocity(0, 0.3f, 0);
 
-	particles[index].emit(pos, velocity, 3.0f, vec4(2.5f, 0, 0, 1), vec4(0, 0, 0, 0));
+	particles[index].emit(pos, velocity, 3.0f);
 }

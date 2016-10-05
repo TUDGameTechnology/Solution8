@@ -5,8 +5,6 @@
 // A simple particle implementation
 class Particle {
 public:
-	Kore::mat4 M;
-	
 	// The current position
 	Kore::vec3 position;
 	
@@ -18,22 +16,10 @@ public:
 
 	// The total time time to live
 	float totalTimeToLive;
-
-	// Is the particle dead (= ready to be re-spawned?)
-	bool dead;
-
-	/************************************************************************/
-	/* Solution - Simulate fire by interpolating colors over lifetime       */
-	/************************************************************************/
-	// The beginning color
-	Kore::vec4 colorStart;
-
-	// The end color
-	Kore::vec4 colorEnd;
 	
 	Particle();
 	
-	void emit(Kore::vec3 pos, Kore::vec3 velocity, float timeToLive, Kore::vec4 colorStart, Kore::vec4 colorEnd);
+	void emit(Kore::vec3 pos, Kore::vec3 velocity, float timeToLive);
 	void integrate(float deltaTime);
 };
 
@@ -50,6 +36,15 @@ public:
 
 	// The maximal coordinates of the emitter box
 	Kore::vec3 emitMax;
+
+	/************************************************************************/
+	/* Solution - Simulate fire by interpolating colors over lifetime       */
+	/************************************************************************/
+	// The beginning color
+	Kore::vec4 colorStart;
+
+	// The end color
+	Kore::vec4 colorEnd;
 	
 	// The list of particles
 	Particle* particles;
