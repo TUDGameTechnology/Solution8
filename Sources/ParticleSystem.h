@@ -5,9 +5,6 @@
 // A simple particle implementation
 class Particle {
 public:
-	Kore::VertexBuffer* vb;
-	Kore::IndexBuffer* ib;
-
 	Kore::mat4 M;
 	
 	// The current position
@@ -36,16 +33,15 @@ public:
 	
 	Particle();
 	
-	void init(const Kore::VertexStructure& structure);
 	void emit(Kore::vec3 pos, Kore::vec3 velocity, float timeToLive, Kore::vec4 colorStart, Kore::vec4 colorEnd);
 	void integrate(float deltaTime);
-	void render(Kore::TextureUnit tex, Kore::Texture* image);
-private:
-	void setVertex(float* vertices, int index, float x, float y, float z, float u, float v);
 };
 
 class ParticleSystem {
 public:
+	Kore::VertexBuffer* vb;
+	Kore::IndexBuffer* ib;
+
 	// The center of the particle system
 	Kore::vec3 position;
 
@@ -68,10 +64,12 @@ public:
 	float nextSpawn;
 
 	ParticleSystem(int maxParticles, const Kore::VertexStructure& structure );
-	
+
 	void update(float deltaTime);
 	void render(Kore::TextureUnit tex, Kore::Texture* image, Kore::ConstantLocation mLocation, Kore::ConstantLocation tintLocation, Kore::mat4 V);
 private:
+	void init(const Kore::VertexStructure& structure);
+	void setVertex(float* vertices, int index, float x, float y, float z, float u, float v);
 	float getRandom(float minValue, float maxValue);
 	void emitParticle(int index);
 };

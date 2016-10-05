@@ -7,40 +7,7 @@
 using namespace Kore;
 
 Particle::Particle() {
-}
-
-void Particle::init(const VertexStructure& structure) {
-	vb = new VertexBuffer(4, structure,0);
-	float* vertices = vb->lock();
-	setVertex(vertices, 0, -1, -1, 0, 0, 0);
-	setVertex(vertices, 1, -1, 1, 0, 0, 1);
-	setVertex(vertices, 2, 1, 1, 0, 1, 1); 
-	setVertex(vertices, 3, 1, -1, 0, 1, 0); 
-	vb->unlock();
-
-	// Set index buffer
-	ib = new IndexBuffer(6);
-	int* indices = ib->lock();
-	indices[0] = 0;
-	indices[1] = 1;
-	indices[2] = 2;
-	indices[3] = 0;
-	indices[4] = 2;
-	indices[5] = 3;
-	ib->unlock();
-
 	dead = true;
-}
-
-void Particle::setVertex(float* vertices, int index, float x, float y, float z, float u, float v) {
-	vertices[index* 8 + 0] = x;
-	vertices[index*8 + 1] = y;
-	vertices[index*8 + 2] = z;
-	vertices[index*8 + 3] = u;
-	vertices[index*8 + 4] = v;
-	vertices[index*8 + 5] = 0.0f;
-	vertices[index*8 + 6] = 0.0f;
-	vertices[index*8 + 7] = -1.0f;
 }
 
 void Particle::emit(vec3 pos, vec3 velocity, float timeToLive, vec4 colorStart, vec4 colorEnd) {
@@ -67,21 +34,11 @@ void Particle::integrate(float deltaTime) {
 	M = mat4::Translation(position.x(), position.y(), position.z()) * mat4::Scale(0.2f, 0.2f, 0.2f);
 }
 
-void Particle::render(TextureUnit tex, Texture* image) {
-	Graphics::setTexture(tex, image);
-	Graphics::setVertexBuffer(*vb);
-	Graphics::setIndexBuffer(*ib);
-	Graphics::drawIndexedVertices();
-}
-
 
 
 ParticleSystem::ParticleSystem(int maxParticles, const VertexStructure& structure ) {
 	particles = new Particle[maxParticles];
 	numParticles = maxParticles;
-	for (int i = 0; i < maxParticles; i++) {
-		particles[i].init(structure);
-	}
 	spawnRate = 0.05f;
 	nextSpawn = spawnRate;
 
@@ -89,8 +46,42 @@ ParticleSystem::ParticleSystem(int maxParticles, const VertexStructure& structur
 	float b = 0.1f;
 	emitMin = position + vec3(-b, -b, -b);
 	emitMax = position + vec3(b, b, b);
+
+	init(structure);
 }
-	
+
+void ParticleSystem::init(const VertexStructure& structure) {
+	vb = new VertexBuffer(4, structure, 0);
+	float* vertices = vb->lock();
+	setVertex(vertices, 0, -1, -1, 0, 0, 0);
+	setVertex(vertices, 1, -1, 1, 0, 0, 1);
+	setVertex(vertices, 2, 1, 1, 0, 1, 1);
+	setVertex(vertices, 3, 1, -1, 0, 1, 0);
+	vb->unlock();
+
+	// Set index buffer
+	ib = new IndexBuffer(6);
+	int* indices = ib->lock();
+	indices[0] = 0;
+	indices[1] = 1;
+	indices[2] = 2;
+	indices[3] = 0;
+	indices[4] = 2;
+	indices[5] = 3;
+	ib->unlock();
+}
+
+void ParticleSystem::setVertex(float* vertices, int index, float x, float y, float z, float u, float v) {
+	vertices[index * 8 + 0] = x;
+	vertices[index * 8 + 1] = y;
+	vertices[index * 8 + 2] = z;
+	vertices[index * 8 + 3] = u;
+	vertices[index * 8 + 4] = v;
+	vertices[index * 8 + 5] = 0.0f;
+	vertices[index * 8 + 6] = 0.0f;
+	vertices[index * 8 + 7] = -1.0f;
+}
+
 void ParticleSystem::update(float deltaTime) {
 	// Do we need to spawn a particle?
 	nextSpawn -= deltaTime;
@@ -140,7 +131,10 @@ void ParticleSystem::render(TextureUnit tex, Texture* image, ConstantLocation mL
 		Graphics::setFloat4(tintLocation, particles[i].colorStart * interpolation + particles[i].colorEnd * (1.0f - interpolation));
 
 		Graphics::setMatrix(mLocation, particles[i].M * V);
-		particles[i].render(tex, image);
+		Graphics::setTexture(tex, image);
+		Graphics::setVertexBuffer(*vb);
+		Graphics::setIndexBuffer(*ib);
+		Graphics::drawIndexedVertices();
 	}
 	Graphics::setRenderState(RenderState::DepthWrite, true);
 }
