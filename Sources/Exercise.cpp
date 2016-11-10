@@ -206,7 +206,7 @@ public:
 		/************************************************************************/
 		/* Change the matrix V in such a way that the billboards are oriented towards the camera */
 
-		V.Invert();
+		V = V.Invert();
 		V.Set(0, 3, 0.0f);
 		V.Set(1, 3, 0.0f);
 		V.Set(2, 3, 0.0f);
@@ -322,7 +322,7 @@ public:
 		cameraPosition.set(x, 2, z);
 
 		//PV = mat4::Perspective(60, (float)width / (float)height, 0.1f, 100) * mat4::lookAt(vec3(0, 2, -3), vec3(0, 2, 0), vec3(0, 1, 0));
-		P = mat4::Perspective(60, (float)width / (float)height, 0.1f, 100);
+		P = mat4::Perspective(20.0f, (float)width / (float)height, 0.1f, 100.0f);
 		View = mat4::lookAt(vec3(x, 2, z), vec3(0, 2, 0), vec3(0, 1, 0));
 		PV = P * View;
 
@@ -392,7 +392,7 @@ public:
 
 			vec4 impulse(0, 0.4, 2, 0);
 			mat4 viewI = View;
-			viewI.Invert();
+			viewI = View.Invert();
 			impulse = viewI * impulse;
 			
 			vec3 impulse3(impulse.x(), impulse.y(), impulse.z());
@@ -455,6 +455,7 @@ public:
 
 		Graphics::setRenderState(DepthTest, true);
 		Graphics::setRenderState(DepthTestCompare, ZCompareLess);
+		Graphics::setRenderState(DepthWrite, true);
 
 		Graphics::setTextureAddressing(tex, U, Repeat);
 		Graphics::setTextureAddressing(tex, V, Repeat);
