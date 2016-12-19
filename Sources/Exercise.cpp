@@ -167,10 +167,15 @@ public:
 		spawnRate = 0.05f;
 		nextSpawn = spawnRate;
 
-		position = vec3(0.5f, 1.3f, 0.5f);
-		float b = 0.1f;
-		emitMin = position + vec3(-b, -b, -b);
-		emitMax = position + vec3(b, b, b);
+		setPosition(vec3(0.5f, 1.3f, 0.5f));
+	}
+
+	void setPosition(const Kore::vec3& inPosition, float distance = 0.1f)
+	{
+		position = inPosition;
+
+		emitMin = position - vec3(distance, distance, distance);
+		emitMax = position + vec3(distance, distance, distance);
 	}
 
 	
@@ -206,10 +211,13 @@ public:
 		/************************************************************************/
 		/* Change the matrix V in such a way that the billboards are oriented towards the camera */
 
-		V = V.Invert();
+		/** This is the alternative solution */
+		/* V = V.Invert();
 		V.Set(0, 3, 0.0f);
 		V.Set(1, 3, 0.0f);
-		V.Set(2, 3, 0.0f);
+		V.Set(2, 3, 0.0f);  */
+		
+		V = V.Transpose3x3();
 
 		/************************************************************************/
 		/* Exercise 7 1.2                                                       */
@@ -321,9 +329,9 @@ public:
 		
 		cameraPosition.set(x, 2, z);
 
-		//PV = mat4::Perspective(60, (float)width / (float)height, 0.1f, 100) * mat4::lookAt(vec3(0, 2, -3), vec3(0, 2, 0), vec3(0, 1, 0));
 		P = mat4::Perspective(20.0f, (float)width / (float)height, 0.1f, 100.0f);
 		View = mat4::lookAt(vec3(x, 2, z), vec3(0, 2, 0), vec3(0, 1, 0));
+		// View = mat4::lookAt(vec3(x, 10, z), vec3(0, 2, 0), vec3(0, 1, 0));
 		PV = P * View;
 
 
@@ -449,7 +457,12 @@ public:
 
 		sphere = new MeshObject("ball_at_origin.obj", "Level/unshaded.png", structure);
 
+		particleImage = new Texture("SuperParticle.png", true);
+		particleSystem = new ParticleSystem(100, structure);
+		// particleSystem->setPosition(Kore::vec3(1.5f, 1.0f, 1.5f), 0.0f);
+
 		SpawnSphere(vec3(0, 2, 0), vec3(0, 0, 0));
+		// SpawnSphere(particleSystem->position, vec3(0, 0, 0));
 		
 		
 
@@ -460,8 +473,6 @@ public:
 		Graphics::setTextureAddressing(tex, U, Repeat);
 		Graphics::setTextureAddressing(tex, V, Repeat);
 
-		particleImage = new Texture("SuperParticle.png", true);
-		particleSystem = new ParticleSystem(100, structure);
 
 		
 
@@ -484,6 +495,8 @@ int kore(int argc, char** argv) {
 	options.rendererOptions.textureFormat = 0;
 	options.rendererOptions.antialiasing = 0;
 	Kore::System::initWindow(options);
+
+	Kore::Random::init(42);
 
 	init();
 
