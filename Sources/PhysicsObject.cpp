@@ -1,7 +1,6 @@
 #include "PhysicsObject.h"
 #include "Kore/Log.h"
 
-
 using namespace Kore;
 
 int PhysicsObject::currentID;

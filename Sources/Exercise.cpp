@@ -1,33 +1,32 @@
 #include "pch.h"
 
+#include <Kore/System.h>
 #include <Kore/IO/FileReader.h>
 #include <Kore/Math/Core.h>
 #include <Kore/Math/Random.h>
-#include <Kore/System.h>
 #include <Kore/Input/Keyboard.h>
 #include <Kore/Input/Mouse.h>
-#include <Kore/Audio/Mixer.h>
-#include <Kore/Graphics/Image.h>
-#include <Kore/Graphics/Graphics.h>
+#include <Kore/Graphics1/Image.h>
+#include <Kore/Graphics4/Graphics.h>
+#include <Kore/Graphics4/PipelineState.h>
 #include <Kore/Log.h>
 #include "ObjLoader.h"
 
 #include "Collision.h"
 #include "PhysicsWorld.h"
 #include "PhysicsObject.h"
+#include "Memory.h"
+#include "ShaderProgram.h"
 
 using namespace Kore;
 
 namespace {
-	
-	ConstantLocation tintLocation;
-
 
 // A simple particle implementation
 class Particle {
 public:
-	VertexBuffer* vb;
-	IndexBuffer* ib;
+	Graphics4::VertexBuffer* vb;
+	Graphics4::IndexBuffer* ib;
 
 	mat4 M;
 	
@@ -55,9 +54,8 @@ public:
 	// The end color
 	vec4 colorEnd;
 
-
-	void init(const VertexStructure& structure) {
-		vb = new VertexBuffer(4, structure,0);
+	void init(const Graphics4::VertexStructure& structure) {
+		vb = new Graphics4::VertexBuffer(4, structure,0);
 		float* vertices = vb->lock();
 		SetVertex(vertices, 0, -1, -1, 0, 0, 0);
 		SetVertex(vertices, 1, -1, 1, 0, 0, 1);
@@ -66,7 +64,7 @@ public:
 		vb->unlock();
 
 		// Set index buffer
-		ib = new IndexBuffer(6);
+		ib = new Graphics4::IndexBuffer(6);
 		int* indices = ib->lock();
 		indices[0] = 0;
 		indices[1] = 1;
@@ -105,11 +103,11 @@ public:
 		vertices[index*8 + 7] = -1.0f;
 	}
 
-	void render(TextureUnit tex, Texture* image) {
-		Graphics::setTexture(tex, image);
-		Graphics::setVertexBuffer(*vb);
-		Graphics::setIndexBuffer(*ib);
-		Graphics::drawIndexedVertices();
+	void render(Graphics4::TextureUnit tex, Graphics4::Texture* image) {
+		Graphics4::setTexture(tex, image);
+		Graphics4::setVertexBuffer(*vb);
+		Graphics4::setIndexBuffer(*ib);
+		Graphics4::drawIndexedVertices();
 	}
 
 	void Integrate(float deltaTime) {
@@ -132,6 +130,9 @@ public:
 
 
 class ParticleSystem {
+private:
+	ShaderProgram* shaderProgram;
+	
 public:
 
 	// The center of the particle system
@@ -155,12 +156,8 @@ public:
 	// When should the next particle be spawned?
 	float nextSpawn;
 
-	
-	
-
-	ParticleSystem(int maxParticles, const VertexStructure& structure ) {
+	ParticleSystem(int maxParticles, const Graphics4::VertexStructure& structure, ShaderProgram* shaderProgram) : numParticles(maxParticles), shaderProgram(shaderProgram) {
 		particles = new Particle[maxParticles];
-		numParticles = maxParticles;
 		for (int i = 0; i < maxParticles; i++) {
 			particles[i].init(structure);
 		}
@@ -202,12 +199,11 @@ public:
 		}
 	}
 
-	void render(TextureUnit tex, Texture* image, ConstantLocation mLocation, mat4 V) {
-		Graphics::setBlendingMode(BlendingOperation::SourceAlpha, BlendingOperation::InverseSourceAlpha);
-		Graphics::setRenderState(RenderState::DepthWrite, false);
+	void render(Graphics4::TextureUnit tex, Graphics4::Texture* image, mat4 V, mat4 PV) {
+		shaderProgram->setPipeline();
 		
 		/************************************************************************/
-		/* Exercise 7 1.1                                                       */
+		/* Exercise P8.1														*/
 		/************************************************************************/
 		/* Change the matrix V in such a way that the billboards are oriented towards the camera */
 
@@ -220,9 +216,9 @@ public:
 		V = V.Transpose3x3();
 
 		/************************************************************************/
-		/* Exercise 7 1.2                                                       */
+		/* Exercise P8.2														*/
 		/************************************************************************/
-		/* Animate using at least one new control parameter */		
+		/* Animate using at least one new control parameter */
 
 		for (int i = 0; i < numParticles; i++) {
 			// Skip dead particles
@@ -230,12 +226,12 @@ public:
 
 			// Interpolate linearly between the two colors
 			float interpolation = particles[i].timeToLive / particles[i].totalTimeToLive;
-			Graphics::setFloat4(tintLocation, particles[i].colorStart * interpolation + particles[i].colorEnd * (1.0f - interpolation));
-
-			Graphics::setMatrix(mLocation, particles[i].M * V);
+			shaderProgram->setTint(particles[i].colorStart * interpolation + particles[i].colorEnd * (1.0f - interpolation));
+			shaderProgram->setModelMatrix(particles[i].M * V);
+			shaderProgram->setProjectionViewMatrix(PV);
+			
 			particles[i].render(tex, image);
 		}
-		Graphics::setRenderState(RenderState::DepthWrite, true);
 	}
 
 	float getRandom(float minValue, float maxValue) {
@@ -258,21 +254,11 @@ public:
 
 		particles[index].Emit(pos, velocity, 3.0f, vec4(2.5f, 0, 0, 1), vec4(0, 0, 0, 0));
 	}
-
-
 };
-
-
-
-
-
+	
 	const int width = 1024;
 	const int height = 768;
-	double startTime;
-	Shader* vertexShader;
-	Shader* fragmentShader;
-	Program* program;
-
+	
 	float angle = 0.0f;
 
 	// null terminated array of MeshObject pointers
@@ -280,7 +266,6 @@ public:
 
 	// null terminated array of PhysicsObject pointers
 	PhysicsObject* physicsObjects[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
-
 
 	// The view projection matrix aka the camera
 	mat4 P;
@@ -294,16 +279,15 @@ public:
 
 	PhysicsWorld physics;
 	
-
 	// uniform locations - add more as you see fit
-	TextureUnit tex;
-	ConstantLocation pvLocation;
-	ConstantLocation mLocation;
+	Graphics4::TextureUnit tex;
+/*	Graphics4::ConstantLocation pvLocation;
+	Graphics4::ConstantLocation mLocation;*/
 
-
-	Texture* particleImage;
+	Graphics4::Texture* particleImage;
 	ParticleSystem* particleSystem;
 
+	double startTime;
 	double lastTime;
 
 	void update() {
@@ -311,17 +295,14 @@ public:
 		double deltaT = t - lastTime;
 		//Kore::log(Info, "%f\n", deltaT);
 		lastTime = t;
-		Kore::Audio::update();
 		
-		Graphics::begin();
-		Graphics::clear(Graphics::ClearColorFlag | Graphics::ClearDepthFlag, 0xff9999FF, 1000.0f);
+		Graphics4::begin();
+		Graphics4::clear(Graphics4::ClearColorFlag | Graphics4::ClearDepthFlag, 0xff9999FF, 1000.0f);
 
 		// Important: We need to set the program before we set a uniform
-		program->set();
-		Graphics::setFloat4(tintLocation, vec4(1, 1, 1, 1));
-		Graphics::setBlendingMode(SourceAlpha, Kore::BlendingOperation::InverseSourceAlpha);
-		Graphics::setRenderState(BlendingState, true);
-
+//TODO		Graphics4::setPipeline(pipeline);
+//		Graphics4::setFloat4(tintLocation, vec4(1, 1, 1, 1));
+		
 		angle += 0.3f * deltaT;
 
 		float x = 0 + 3 * Kore::cos(angle);
@@ -331,49 +312,37 @@ public:
 
 		P = mat4::Perspective(20.0f, (float)width / (float)height, 0.1f, 100.0f);
 		View = mat4::lookAt(vec3(x, 2, z), vec3(0, 2, 0), vec3(0, 1, 0));
-		// View = mat4::lookAt(vec3(x, 10, z), vec3(0, 2, 0), vec3(0, 1, 0));
 		PV = P * View;
 
 
-		Graphics::setMatrix(pvLocation, PV);
+//		Graphics4::setMatrix(pvLocation, PV);
 
 		// Reset tint for objects that should not be tinted
-		Graphics::setFloat4(tintLocation, vec4(1, 1, 1, 1));
+//		Graphics4::setFloat4(tintLocation, vec4(1, 1, 1, 1));
 
-
-
-		// iterate the MeshObjects
+		// Iterate the MeshObjects and render them
 		MeshObject** current = &objects[0];
 		while (*current != nullptr) {
-			// set the model matrix
-			Graphics::setMatrix(mLocation, (*current)->M);
-
-			(*current)->render(tex);
+			
+			(*current)->render(tex, PV, vec4(1, 1, 1, 1));
 			++current;
 		} 
 
-		
-
-		// Update the physics
+		// Update the physics and render the meshes
 		physics.Update(deltaT);
 
 		PhysicsObject** currentP = &physics.physicsObjects[0];
 		while (*currentP != nullptr) {
 			(*currentP)->UpdateMatrix();
-			Graphics::setMatrix(mLocation, (*currentP)->Mesh->M);
-			(*currentP)->Mesh->render(tex);
+			(*currentP)->Mesh->render(tex, PV, vec4(1, 1, 1, 1));
 			++currentP;
 		}
 		
-
-
 		particleSystem->update(deltaT);
-		particleSystem->render(tex, particleImage, mLocation, View);
+		particleSystem->render(tex, particleImage, View, PV);
 
-
-
-		Graphics::end();
-		Graphics::swapBuffers();
+		Graphics4::end();
+		Graphics4::swapBuffers();
 	}
 
 	void SpawnSphere(vec3 Position, vec3 Velocity) {
@@ -384,16 +353,13 @@ public:
 
 		po->Mass = 5;
 		po->Mesh = sphere;
-			
-		// The impulse should carry the object forward
-		// Use the inverse of the view matrix
 
 		po->ApplyImpulse(Velocity);
 		physics.AddObject(po);
 	}
 
-	void keyDown(KeyCode code, wchar_t character) {
-		if (code == Key_Space) {
+	void keyDown(KeyCode code) {
+		if (code == KeySpace) {
 			
 			// The impulse should carry the object forward
 			// Use the inverse of the view matrix
@@ -410,8 +376,8 @@ public:
 		}
 	}
 
-	void keyUp(KeyCode code, wchar_t character) {
-		if (code == Key_Left) {
+	void keyUp(KeyCode code) {
+		if (code == KeyLeft) {
 			// ...
 		}
 	}
@@ -424,98 +390,56 @@ public:
 
 	}
 
-	
-
 	void mouseRelease(int windowId, int button, int x, int y) {
 		
 	}
 
 	void init() {
-		FileReader vs("shader.vert");
-		FileReader fs("shader.frag");
-		vertexShader = new Shader(vs.readAll(), vs.size(), VertexShader);
-		fragmentShader = new Shader(fs.readAll(), fs.size(), FragmentShader);
-
+		Memory::init();
+		
 		// This defines the structure of your Vertex Buffer
-		VertexStructure structure;
-		structure.add("pos", Float3VertexData);
-		structure.add("tex", Float2VertexData);
-		structure.add("nor", Float3VertexData);
+		Graphics4::VertexStructure structure;
+		structure.add("pos", Graphics4::Float3VertexData);
+		structure.add("tex", Graphics4::Float2VertexData);
+		structure.add("nor", Graphics4::Float3VertexData);
 
-		program = new Program;
-		program->setVertexShader(vertexShader);
-		program->setFragmentShader(fragmentShader);
-		program->link(structure);
-
-		tex = program->getTextureUnit("tex");
-		pvLocation = program->getConstantLocation("PV");
-		mLocation = program->getConstantLocation("M");
-		tintLocation = program->getConstantLocation("tint");
-
-		objects[0] = new MeshObject("Base.obj", "Level/basicTiles6x6.png", structure);
+		// Set up shader
+		ShaderProgram* shader = new ShaderProgram("shader.vert", "shader.frag", structure, true);
+		ShaderProgram* shaderParticle = new ShaderProgram("shader.vert", "shader.frag", structure, false);
+		
+		objects[0] = new MeshObject("Base.obj", "Level/basicTiles6x6.png", structure, shader);
 		objects[0]->M = mat4::Translation(0.0f, 1.0f, 0.0f);
 
-		sphere = new MeshObject("ball_at_origin.obj", "Level/unshaded.png", structure);
-
-		particleImage = new Texture("SuperParticle.png", true);
-		particleSystem = new ParticleSystem(100, structure);
-		// particleSystem->setPosition(Kore::vec3(1.5f, 1.0f, 1.5f), 0.0f);
+		sphere = new MeshObject("ball_at_origin.obj", "Level/unshaded.png", structure, shader);
 
 		SpawnSphere(vec3(0, 2, 0), vec3(0, 0, 0));
-		// SpawnSphere(particleSystem->position, vec3(0, 0, 0));
 		
+		Graphics4::setTextureAddressing(tex, Graphics4::U, Graphics4::Repeat);
+		Graphics4::setTextureAddressing(tex, Graphics4::V, Graphics4::Repeat);
 		
-
-		Graphics::setRenderState(DepthTest, true);
-		Graphics::setRenderState(DepthTestCompare, ZCompareLess);
-		Graphics::setRenderState(DepthWrite, true);
-
-		Graphics::setTextureAddressing(tex, U, Repeat);
-		Graphics::setTextureAddressing(tex, V, Repeat);
-
-
-		
-
+		particleImage = new Graphics4::Texture("SuperParticle.png", true);
+		particleSystem = new ParticleSystem(100, structure, shaderParticle);
 	}
 }
 
 int kore(int argc, char** argv) {
-	Kore::System::setName("TUD Game Technology - ");
-	Kore::System::setup();
-	Kore::WindowOptions options;
-	options.title = "Solution 7";
-	options.width = width;
-	options.height = height;
-	options.x = 100;
-	options.y = 100;
-	options.targetDisplay = -1;
-	options.mode = WindowModeWindow;
-	options.rendererOptions.depthBufferBits = 16;
-	options.rendererOptions.stencilBufferBits = 8;
-	options.rendererOptions.textureFormat = 0;
-	options.rendererOptions.antialiasing = 0;
-	Kore::System::initWindow(options);
-
+	Kore::System::init("Solution 8", width, height);
+	
 	Kore::Random::init(42);
-
+	
 	init();
-
+	
 	Kore::System::setCallback(update);
-
-	Kore::Mixer::init();
-	Kore::Audio::init();
-
-
-	startTime = System::time();
-
-
+	
+	startTime = (float) System::time();
+	
 	Keyboard::the()->KeyDown = keyDown;
 	Keyboard::the()->KeyUp = keyUp;
 	Mouse::the()->Move = mouseMove;
 	Mouse::the()->Press = mousePress;
 	Mouse::the()->Release = mouseRelease;
-
+	
 	Kore::System::start();
-
+	
 	return 0;
 }

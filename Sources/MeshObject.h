@@ -2,31 +2,25 @@
 
 #include "pch.h"
 
-// TODO: Way too many includes
-
 #include <Kore/IO/FileReader.h>
 #include <Kore/Math/Core.h>
 #include <Kore/Math/Random.h>
 #include <Kore/System.h>
-#include <Kore/Input/Keyboard.h>
-#include <Kore/Input/Mouse.h>
-#include <Kore/Audio/Mixer.h>
-#include <Kore/Graphics/Image.h>
-#include <Kore/Graphics/Graphics.h>
+#include <Kore/Graphics1/Graphics.h>
+#include <Kore/Graphics4/Graphics.h>
 #include <Kore/Log.h>
 #include "ObjLoader.h"
-
-
+#include "ShaderProgram.h"
 
 using namespace Kore;
 
 class MeshObject {
 public:
-	MeshObject(const char* meshFile, const char* textureFile, const VertexStructure& structure, float scale = 1.0f) {
+	MeshObject(const char* meshFile, const char* textureFile, const Graphics4::VertexStructure& structure, ShaderProgram* shaderProgram, float scale = 1.0f) : shaderProgram(shaderProgram) {
 		mesh = loadObj(meshFile);
-		image = new Texture(textureFile, true);
-
-		vertexBuffer = new VertexBuffer(mesh->numVertices, structure,0);
+		image = new Graphics4::Texture(textureFile, true);
+		
+		vertexBuffer = new Graphics4::VertexBuffer(mesh->numVertices, structure,0);
 		float* vertices = vertexBuffer->lock();
 		for (int i = 0; i < mesh->numVertices; ++i) {
 			vertices[i * 8 + 0] = mesh->vertices[i * 8 + 0] * scale;
@@ -39,28 +33,39 @@ public:
 			vertices[i * 8 + 7] = mesh->vertices[i * 8 + 7];
 		}
 		vertexBuffer->unlock();
-
-		indexBuffer = new IndexBuffer(mesh->numFaces * 3);
+		
+		indexBuffer = new Graphics4::IndexBuffer(mesh->numFaces * 3);
 		int* indices = indexBuffer->lock();
 		for (int i = 0; i < mesh->numFaces * 3; i++) {
 			indices[i] = mesh->indices[i];
 		}
 		indexBuffer->unlock();
-
+		
 		M = mat4::Identity();
 	}
-
-	void render(TextureUnit tex) {
-		Graphics::setTexture(tex, image);
-		Graphics::setVertexBuffer(*vertexBuffer);
-		Graphics::setIndexBuffer(*indexBuffer);
-		Graphics::drawIndexedVertices();
+	
+	void render(Graphics4::TextureUnit tex, const mat4 &PV, const vec4 &tint) {
+		shaderProgram->setPipeline();
+		
+		shaderProgram->setProjectionViewMatrix(PV);
+		shaderProgram->setModelMatrix(M);
+		shaderProgram->setTint(tint);
+		
+		Graphics4::setTextureAddressing(tex, Graphics4::U, Graphics4::TextureAddressing::Repeat);
+		Graphics4::setTextureAddressing(tex, Graphics4::V, Graphics4::TextureAddressing::Repeat);
+		
+		Graphics4::setTexture(tex, image);
+		Graphics4::setVertexBuffer(*vertexBuffer);
+		Graphics4::setIndexBuffer(*indexBuffer);
+		Graphics4::drawIndexedVertices();
 	}
-
+	
 	mat4 M;
+	
 private:
-	VertexBuffer* vertexBuffer;
-	IndexBuffer* indexBuffer;
+	ShaderProgram* shaderProgram;
+	Graphics4::VertexBuffer* vertexBuffer;
+	Graphics4::IndexBuffer* indexBuffer;
 	Mesh* mesh;
-	Texture* image;
+	Graphics4::Texture* image;
 };

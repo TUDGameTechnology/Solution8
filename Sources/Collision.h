@@ -10,8 +10,6 @@ class PlaneCollider {
 public:
 	float d;
 	vec3 normal;
-
-
 };
 
 // A sphere is defined by a radius and a center.
