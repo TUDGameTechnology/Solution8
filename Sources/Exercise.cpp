@@ -206,12 +206,12 @@ public:
 		/* Change the matrix V in such a way that the billboards are oriented towards the camera */
 
 		/** This is the alternative solution */
-		/* V = V.Invert();
-		V.Set(0, 3, 0.0f);
-		V.Set(1, 3, 0.0f);
-		V.Set(2, 3, 0.0f);  */
+		/*parameters.V = parameters.V.Invert();
+		parameters.V.Set(0, 3, 0.0f);
+		parameters.V.Set(1, 3, 0.0f);
+		parameters.V.Set(2, 3, 0.0f);*/
 		
-		parameters.V = parameters.V.Transpose3x3();
+		//parameters.V = parameters.V.Transpose3x3();
 
 		/************************************************************************/
 		/* Exercise P8.2														*/

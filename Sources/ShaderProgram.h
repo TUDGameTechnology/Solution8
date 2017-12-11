@@ -43,6 +43,7 @@ public:
 		tintLocation = pipeline->getConstantLocation("tint");
 	}
 	
+	// Update this program from the scene parameters
 	virtual void Set(const SceneParameters& parameters, const mat4& M, Graphics4::Texture* image)
 	{
 		// Important: We need to set the program before we set a uniform
