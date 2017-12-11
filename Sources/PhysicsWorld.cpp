@@ -43,7 +43,6 @@ void PhysicsWorld::Update(float deltaT) {
 		currentP = &physicsObjects[0];
 		while (*currentP != nullptr) {
 
-			
 			// Check for collisions with the other objects
 			PhysicsObject** currentCollision = currentP + 1;
 			while (*currentCollision != nullptr) {
@@ -53,11 +52,6 @@ void PhysicsWorld::Update(float deltaT) {
 			}
 			++currentP;
 		}
-
-		
-
-		
-
 }
 
 
@@ -67,5 +61,4 @@ void PhysicsWorld::AddObject(PhysicsObject* po) {
 		++current;
 	} 
 	*current = po;
-
 }

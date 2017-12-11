@@ -44,17 +44,8 @@ public:
 		M = mat4::Identity();
 	}
 	
-	void render(Graphics4::TextureUnit tex, const mat4 &PV, const vec4 &tint) {
-		shaderProgram->setPipeline();
-		
-		shaderProgram->setProjectionViewMatrix(PV);
-		shaderProgram->setModelMatrix(M);
-		shaderProgram->setTint(tint);
-		
-		Graphics4::setTextureAddressing(tex, Graphics4::U, Graphics4::TextureAddressing::Repeat);
-		Graphics4::setTextureAddressing(tex, Graphics4::V, Graphics4::TextureAddressing::Repeat);
-		
-		Graphics4::setTexture(tex, image);
+	void render(const SceneParameters& parameters) {
+		shaderProgram->Set(parameters, M, image);
 		Graphics4::setVertexBuffer(*vertexBuffer);
 		Graphics4::setIndexBuffer(*indexBuffer);
 		Graphics4::drawIndexedVertices();
@@ -63,9 +54,11 @@ public:
 	mat4 M;
 	
 private:
+	Mesh* mesh;
+	
 	ShaderProgram* shaderProgram;
 	Graphics4::VertexBuffer* vertexBuffer;
 	Graphics4::IndexBuffer* indexBuffer;
-	Mesh* mesh;
+	
 	Graphics4::Texture* image;
 };

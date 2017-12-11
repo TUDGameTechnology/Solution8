@@ -6,9 +6,6 @@
 #include <Kore/Math/Random.h>
 #include <Kore/Input/Keyboard.h>
 #include <Kore/Input/Mouse.h>
-#include <Kore/Graphics1/Image.h>
-#include <Kore/Graphics4/Graphics.h>
-#include <Kore/Graphics4/PipelineState.h>
 #include <Kore/Log.h>
 #include "ObjLoader.h"
 
@@ -103,8 +100,7 @@ public:
 		vertices[index*8 + 7] = -1.0f;
 	}
 
-	void render(Graphics4::TextureUnit tex, Graphics4::Texture* image) {
-		Graphics4::setTexture(tex, image);
+	void render() {
 		Graphics4::setVertexBuffer(*vb);
 		Graphics4::setIndexBuffer(*ib);
 		Graphics4::drawIndexedVertices();
@@ -132,6 +128,8 @@ public:
 class ParticleSystem {
 private:
 	ShaderProgram* shaderProgram;
+	
+	Graphics4::Texture* particleImage;
 	
 public:
 
@@ -165,6 +163,8 @@ public:
 		nextSpawn = spawnRate;
 
 		setPosition(vec3(0.5f, 1.3f, 0.5f));
+		
+		particleImage = new Graphics4::Texture("SuperParticle.png", true);
 	}
 
 	void setPosition(const Kore::vec3& inPosition, float distance = 0.1f)
@@ -199,9 +199,7 @@ public:
 		}
 	}
 
-	void render(Graphics4::TextureUnit tex, Graphics4::Texture* image, mat4 V, mat4 PV) {
-		shaderProgram->setPipeline();
-		
+	void render(SceneParameters& parameters) {
 		/************************************************************************/
 		/* Exercise P8.1														*/
 		/************************************************************************/
@@ -213,7 +211,7 @@ public:
 		V.Set(1, 3, 0.0f);
 		V.Set(2, 3, 0.0f);  */
 		
-		V = V.Transpose3x3();
+		parameters.V = parameters.V.Transpose3x3();
 
 		/************************************************************************/
 		/* Exercise P8.2														*/
@@ -223,14 +221,14 @@ public:
 		for (int i = 0; i < numParticles; i++) {
 			// Skip dead particles
 			if (particles[i].dead) continue;
-
+			
 			// Interpolate linearly between the two colors
 			float interpolation = particles[i].timeToLive / particles[i].totalTimeToLive;
-			shaderProgram->setTint(particles[i].colorStart * interpolation + particles[i].colorEnd * (1.0f - interpolation));
-			shaderProgram->setModelMatrix(particles[i].M * V);
-			shaderProgram->setProjectionViewMatrix(PV);
+			parameters.tint = particles[i].colorStart * interpolation + particles[i].colorEnd * (1.0f - interpolation);
 			
-			particles[i].render(tex, image);
+			shaderProgram->Set(parameters, particles[i].M * parameters.V, particleImage);
+			
+			particles[i].render();
 		}
 	}
 
@@ -269,23 +267,19 @@ public:
 
 	// The view projection matrix aka the camera
 	mat4 P;
-	mat4 View;
+	mat4 V;
 	mat4 PV;
-
+	
 	vec3 cameraPosition;
 
 	MeshObject* sphere;
 	PhysicsObject* po;
 
 	PhysicsWorld physics;
-	
-	// uniform locations - add more as you see fit
-	Graphics4::TextureUnit tex;
-/*	Graphics4::ConstantLocation pvLocation;
-	Graphics4::ConstantLocation mLocation;*/
 
-	Graphics4::Texture* particleImage;
 	ParticleSystem* particleSystem;
+	
+	SceneParameters parameters;
 
 	double startTime;
 	double lastTime;
@@ -298,10 +292,6 @@ public:
 		
 		Graphics4::begin();
 		Graphics4::clear(Graphics4::ClearColorFlag | Graphics4::ClearDepthFlag, 0xff9999FF, 1000.0f);
-
-		// Important: We need to set the program before we set a uniform
-//TODO		Graphics4::setPipeline(pipeline);
-//		Graphics4::setFloat4(tintLocation, vec4(1, 1, 1, 1));
 		
 		angle += 0.3f * deltaT;
 
@@ -311,20 +301,19 @@ public:
 		cameraPosition.set(x, 2, z);
 
 		P = mat4::Perspective(20.0f, (float)width / (float)height, 0.1f, 100.0f);
-		View = mat4::lookAt(vec3(x, 2, z), vec3(0, 2, 0), vec3(0, 1, 0));
-		PV = P * View;
-
-
-//		Graphics4::setMatrix(pvLocation, PV);
+		V = mat4::lookAt(vec3(x, 2, z), vec3(0, 2, 0), vec3(0, 1, 0));
+		PV = P * V;
+		
+		parameters.PV = PV;
+		parameters.V = V;
 
 		// Reset tint for objects that should not be tinted
-//		Graphics4::setFloat4(tintLocation, vec4(1, 1, 1, 1));
+		parameters.tint = vec4(1, 1, 1, 1);
 
 		// Iterate the MeshObjects and render them
 		MeshObject** current = &objects[0];
 		while (*current != nullptr) {
-			
-			(*current)->render(tex, PV, vec4(1, 1, 1, 1));
+			(*current)->render(parameters);
 			++current;
 		} 
 
@@ -334,12 +323,12 @@ public:
 		PhysicsObject** currentP = &physics.physicsObjects[0];
 		while (*currentP != nullptr) {
 			(*currentP)->UpdateMatrix();
-			(*currentP)->Mesh->render(tex, PV, vec4(1, 1, 1, 1));
+			(*currentP)->Mesh->render(parameters);
 			++currentP;
 		}
 		
 		particleSystem->update(deltaT);
-		particleSystem->render(tex, particleImage, View, PV);
+		particleSystem->render(parameters);
 
 		Graphics4::end();
 		Graphics4::swapBuffers();
@@ -365,9 +354,8 @@ public:
 			// Use the inverse of the view matrix
 
 			vec4 impulse(0, 0.4, 2, 0);
-			mat4 viewI = View;
-			viewI = View.Invert();
-			impulse = viewI * impulse;
+			mat4 VI = V.Invert();
+			impulse = VI * impulse;
 			
 			vec3 impulse3(impulse.x(), impulse.y(), impulse.z());
 
@@ -414,10 +402,6 @@ public:
 
 		SpawnSphere(vec3(0, 2, 0), vec3(0, 0, 0));
 		
-		Graphics4::setTextureAddressing(tex, Graphics4::U, Graphics4::Repeat);
-		Graphics4::setTextureAddressing(tex, Graphics4::V, Graphics4::Repeat);
-		
-		particleImage = new Graphics4::Texture("SuperParticle.png", true);
 		particleSystem = new ParticleSystem(100, structure, shaderParticle);
 	}
 }

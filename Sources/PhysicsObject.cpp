@@ -102,10 +102,9 @@ void PhysicsObject::ApplyForceToCenter(vec3 force) {
 
 void PhysicsObject::Integrate(float deltaT) {
 	/************************************************************************/
-	/* Exercise 7 1.3                                                       */
+	/* Exercise P8.3														*/
 	/************************************************************************/
 	/* Implement an Euler integrator here */
-	
 	
 	// Derive a new position based on the velocity (Note: Use SetPosition to also set the collider's values)
 	SetPosition(Position + Velocity * deltaT);

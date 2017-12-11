@@ -7,6 +7,15 @@
 
 using namespace Kore;
 
+struct SceneParameters {
+	// The view projection matrix aka the camera
+	mat4 PV;
+	mat4 V;
+	
+	// Add particle controller here
+	vec4 tint;
+};
+
 class ShaderProgram {
 public:
 	ShaderProgram(const char* vsFile, const char* fsFile, Graphics4::VertexStructure& structure, bool depthWrite)
@@ -28,28 +37,24 @@ public:
 		pipeline->blendDestination = Graphics4::BlendingOperation::InverseSourceAlpha;
 		pipeline->compile();
 		
+		tex = pipeline->getTextureUnit("tex");
 		pvLocation = pipeline->getConstantLocation("PV");
 		mLocation = pipeline->getConstantLocation("M");
 		tintLocation = pipeline->getConstantLocation("tint");
 	}
 	
-	// Update this program from the scene parameters
-	virtual void setPipeline()
+	virtual void Set(const SceneParameters& parameters, const mat4& M, Graphics4::Texture* image)
 	{
 		// Important: We need to set the program before we set a uniform
 		Graphics4::setPipeline(pipeline);
-	}
-	
-	virtual void setModelMatrix(const mat4 &M) {
+		
+		Graphics4::setTexture(tex, image);
 		Graphics4::setMatrix(mLocation, M);
-	}
-	
-	virtual void setProjectionViewMatrix(const mat4 &PV) {
-		Graphics4::setMatrix(pvLocation, PV);
-	}
-	
-	virtual void setTint(const vec4 &tint) {
-		Graphics4::setFloat4(tintLocation, tint);
+		Graphics4::setMatrix(pvLocation, parameters.PV);
+		Graphics4::setFloat4(tintLocation, parameters.tint);
+		
+		Graphics4::setTextureAddressing(tex, Graphics4::U, Graphics4::TextureAddressing::Repeat);
+		Graphics4::setTextureAddressing(tex, Graphics4::V, Graphics4::TextureAddressing::Repeat);
 	}
 	
 protected:
@@ -58,6 +63,7 @@ protected:
 	Graphics4::PipelineState* pipeline;
 	
 	// Uniform locations - add more as you see fit
+	Graphics4::TextureUnit tex;
 	Graphics4::ConstantLocation pvLocation;
 	Graphics4::ConstantLocation mLocation;
 	Graphics4::ConstantLocation tintLocation;
