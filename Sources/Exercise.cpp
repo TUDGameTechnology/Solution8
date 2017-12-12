@@ -211,7 +211,7 @@ public:
 		parameters.V.Set(1, 3, 0.0f);
 		parameters.V.Set(2, 3, 0.0f);*/
 		
-		//parameters.V = parameters.V.Transpose3x3();
+		parameters.V = parameters.V.Transpose3x3();
 
 		/************************************************************************/
 		/* Exercise P8.2														*/
