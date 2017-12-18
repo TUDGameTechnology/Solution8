@@ -56,8 +56,8 @@ public:
 		float* vertices = vb->lock();
 		SetVertex(vertices, 0, -1, -1, 0, 0, 0);
 		SetVertex(vertices, 1, -1, 1, 0, 0, 1);
-		SetVertex(vertices, 2, 1, 1, 0, 1, 1); 
-		SetVertex(vertices, 3, 1, -1, 0, 1, 0); 
+		SetVertex(vertices, 2, 1, 1, 0, 1, 1);
+		SetVertex(vertices, 3, 1, -1, 0, 1, 0);
 		vb->unlock();
 
 		// Set index buffer
@@ -164,7 +164,7 @@ public:
 
 		setPosition(vec3(0.5f, 1.3f, 0.5f));
 		
-		particleImage = new Graphics4::Texture("SuperParticle.png", true);
+		particleImage = new Graphics4::Texture("SuperParticle.png");
 	}
 
 	void setPosition(const Kore::vec3& inPosition, float distance = 0.1f)
@@ -287,7 +287,7 @@ public:
 	void update() {
 		double t = System::time() - startTime;
 		double deltaT = t - lastTime;
-		//Kore::log(Info, "%f\n", deltaT);
+		//Kore::log(Info, "%f", deltaT);
 		lastTime = t;
 		
 		Graphics4::begin();
@@ -315,7 +315,7 @@ public:
 		while (*current != nullptr) {
 			(*current)->render(parameters);
 			++current;
-		} 
+		}
 
 		// Update the physics and render the meshes
 		physics.Update(deltaT);
@@ -415,7 +415,7 @@ int kore(int argc, char** argv) {
 	
 	Kore::System::setCallback(update);
 	
-	startTime = (float) System::time();
+	startTime = System::time();
 	
 	Keyboard::the()->KeyDown = keyDown;
 	Keyboard::the()->KeyUp = keyUp;
